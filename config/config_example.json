@@ -1,0 +1,20 @@
+{
+    "lifetime": 3600,
+    "lastLifeTimeTarget": 0,
+    "lastLifeTimeActual": 0,
+    "bidWindow": 1800,
+    "instanceType": "generalCurrentGen",
+    "instanceSize": "m4.xlarge",
+    "regions": [
+        "us-east-1",
+        "us-west-2",    
+        "us-west-1",    
+        "eu-west-1",    
+        "eu-central-1"  
+    ],
+    "priceListUrl": "http://a0.awsstatic.com/pricing/1/ec2/linux-od.min.js",
+    "terminationUrl": "http://169.254.169.254/latest/meta-data/spot/termination-time",
+    "bidPrice": 0.035,
+    "bidRatio": 25,
+    "twitterHandle": "@tatanka"
+}
