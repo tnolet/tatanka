@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -15,6 +16,7 @@ type Store struct {
 	homeBucket  string
 	homeKey     string
 	localConfig string
+	svc         *s3.S3
 }
 
 type State struct {
@@ -22,18 +24,23 @@ type State struct {
 	LastLifeTimeTarget int
 	LastLifeTimeActual int
 	BidWindow          int
+	BidOffset          int
+	BidPrice           float32
+	BidRatio           int
 	InstanceSize       string
 	InstanceType       string
 	Regions            []string
+	CurrentRegion      string
+	CurrentInstanceID  string
+	LastRegion         string
 	PriceListUrl       string
 	TerminationUrl     string
-	BidPrice           float32
-	BidRatio           int
 	TwitterHandle      string
 }
 
 func New(region string, bucket string, key string, localConfig string) *Store {
-	return &Store{region, bucket, key, localConfig}
+	svc := s3.New(&aws.Config{Region: region})
+	return &Store{region, bucket, key, localConfig, svc}
 }
 
 func (s *Store) GetState() (state State, err error) {
@@ -45,9 +52,7 @@ func (s *Store) GetState() (state State, err error) {
 
 		log.Println("Calling S3 Bucket for state...")
 
-		aws.DefaultConfig.Region = s.homeRegion
-		svc := s3.New(nil)
-		result, err := svc.GetObject(&s3.GetObjectInput{
+		result, err := s.svc.GetObject(&s3.GetObjectInput{
 			Bucket: aws.String(s.homeBucket),
 			Key:    aws.String(s.homeKey),
 		})
@@ -85,4 +90,26 @@ func (s *Store) GetState() (state State, err error) {
 	}
 
 	return state, nil
+}
+
+func (s *Store) PutState(state State) error {
+
+	log.Println("Storing state in S3...")
+
+	stateJson, _ := json.Marshal(state)
+
+	params := &s3.PutObjectInput{
+		Bucket:      aws.String(s.homeBucket),
+		Key:         aws.String(s.homeKey),
+		Body:        bytes.NewReader([]byte(stateJson)),
+		ContentType: aws.String("application/json"),
+	}
+
+	_, err := s.svc.PutObject(params)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

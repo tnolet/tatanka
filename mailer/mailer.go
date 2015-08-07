@@ -3,6 +3,7 @@ package mailer
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ses"
+	"log"
 )
 
 type Mailer struct {
@@ -10,11 +11,10 @@ type Mailer struct {
 	params *ses.SendEmailInput
 }
 
-func New(email string) *Mailer {
+func New(email string, region string) *Mailer {
 
 	var m Mailer
-
-	m.svc = ses.New(nil)
+	m.svc = ses.New(&aws.Config{Region: region})
 	m.params = &ses.SendEmailInput{
 		Destination: &ses.Destination{
 			ToAddresses: []*string{
@@ -42,10 +42,11 @@ func New(email string) *Mailer {
 	return &m
 }
 
-func (m *Mailer) Send(body string) error {
+func (m *Mailer) Send(body string) {
 
 	m.params.Message.Body.Text.Data = aws.String(body)
 	_, err := m.svc.SendEmail(m.params)
-
-	return err
+	if err != nil {
+		log.Println("Error sending email...", err.Error())
+	}
 }

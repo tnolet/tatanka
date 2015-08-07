@@ -15,7 +15,7 @@ import (
 var (
 	HomeRegion  = flag.String("homeRegion", "eu-west-1", "Home region")
 	HomeBucket  = flag.String("homeBucket", "tnolet-tatanka", "S3 Bucket")
-	HomeKey     = flag.String("homeKey", "config_example.json", "S3 Key")
+	HomeKey     = flag.String("homeKey", "conf/config_example.json", "S3 Key")
 	localConfig = flag.String("localConfig", "", "Override S3 path for local testing")
 	HomeEmail   = flag.String("homeEmail", "tim@magnetic.io", "Email address")
 	Port        = flag.Int("port", 1980, "Tatanka's API port")
@@ -28,7 +28,6 @@ func init() {
 }
 
 func main() {
-
 	flag.Parse()
 	helpers.SetValueFromEnv(&HomeRegion, "TATANKA_HOME_REGION")
 	helpers.SetValueFromEnv(&HomeBucket, "TATANKA_HOME_BUCKET")
@@ -49,6 +48,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// fetch remote state
 	state, err := Store.GetState()
 	if err != nil {
 		log.Fatal("Error getting state: " + err.Error())
@@ -62,37 +62,15 @@ func main() {
 
 	log.Println("Initializing mailer...")
 
-	mailer := mailer.New(*HomeEmail)
+	mailer := mailer.New(*HomeEmail, *HomeRegion)
 
-	// if err := mailer.Send("hi there! I'm going to try and run on a " + state.InstanceType); err != nil {
-	// 	log.Println("Error sending email: " + err.Error())
-	// }
+	controlChan := make(chan (control.Message))
+	controller := control.New(state, *mailer, controlChan)
 
-	controller := &control.Controller{}
+	controller.Start()
 
-	if !*Noop {
-		controller.Start(state, *mailer)
-	}
-
-	if *Noop {
-
-		evacChan := make(chan (bool))
-		evacNotice := false
-		controller.StartTerminationChecker(state.TerminationUrl, state.LifeTime, evacChan)
-
-		go func() {
-			for evacNotice == false {
-				select {
-				case evacNotice := <-evacChan:
-					if evacNotice {
-						log.Println("Got evac notice")
-					} else {
-						log.Println("Not evacing just yet")
-					}
-				}
-			}
-		}()
-	}
+	controlChan <- &control.Init{}
+	controlChan <- &control.StartDeathWatch{}
 
 	log.Println("Initializing api...")
 

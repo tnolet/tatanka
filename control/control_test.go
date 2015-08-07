@@ -8,7 +8,7 @@ import (
 func TestGetValidBidWindow(t *testing.T) {
 
 	c := &Controller{}
-	from, till := c.GetValidBidWindow(3600, 1800)
+	from, till := c.GetValidBidWindow(3600, 900, 1800)
 
 	if from.After(till) {
 		t.Errorf("Till cannot be before from: ", from)
@@ -21,13 +21,13 @@ func TestCalculateBidPrice(t *testing.T) {
 
 	// tests for normal prices
 	tests := []struct {
-		o   string
-		s   string
-		r   int
+		o   float64
+		s   float64
+		r   float64
 		res string
 	}{
-		{"0.35", "0.1", 35, "0.135"},
-		{"1.2", "0.815", 12, "0.913"},
+		{0.35, 0.1, 35, "0.135"},
+		{1.2, 0.815, 12, "0.913"},
 	}
 
 	for n, cond := range tests {
@@ -38,13 +38,13 @@ func TestCalculateBidPrice(t *testing.T) {
 
 	// test for too high prices
 	tests = []struct {
-		o   string
-		s   string
-		r   int
+		o   float64
+		s   float64
+		r   float64
 		res string
 	}{
-		{"1.5", "1.0", 50, ""},
-		{"0.12", "0.08", 60, ""},
+		{1.5, 1.0, 50, ""},
+		{0.12, 0.08, 60, ""},
 	}
 
 	for n, cond := range tests {

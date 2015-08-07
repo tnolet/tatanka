@@ -1,7 +1,9 @@
 package bidder
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"io/ioutil"
@@ -12,20 +14,33 @@ import (
 	"time"
 )
 
+const (
+	UserData = `
+#!/bin/bash
+set -e -x
+echo "Getting tatanka..."
+curl -OL http://tnolet-tatanka.s3-eu-west-1.amazonaws.com/tatanka
+chmod +x tatanka
+./tatanka
+`
+)
+
 var (
 	priceListRegexp = regexp.MustCompile("(callback\\()(.*)\\);$")
 )
 
 func New(priceList string, region string) *Bidder {
+	log.Println("Initializing bidder for region:", region)
 	return &Bidder{priceList, ec2.New(&aws.Config{Region: region}), region}
 }
 
 func (b *Bidder) CreateSpotRequest(price string, size string, amiID string, from time.Time, till time.Time) (requests []*SpotRequest, err error) {
 
 	// var keyName = "aws_dcos"
-	var reqType = "one-time"
 	var amount int64 = 1
-
+	var reqType = "one-time"
+	var IAMRoleARN = "arn:aws:iam::539701811563:instance-profile/tatanka"
+	var base64UserData = base64.StdEncoding.EncodeToString([]byte(UserData))
 	// create request
 	params := &ec2.RequestSpotInstancesInput{
 		SpotPrice:     aws.String(price),
@@ -36,7 +51,10 @@ func (b *Bidder) CreateSpotRequest(price string, size string, amiID string, from
 			InstanceType: aws.String(size),
 			ImageID:      aws.String(amiID),
 			// KeyName:      aws.String(keyName),
-			// UserData: aws.String("String"),
+			UserData: aws.String(base64UserData),
+			IAMInstanceProfile: &ec2.IAMInstanceProfileSpecification{
+				ARN: &IAMRoleARN,
+			},
 		},
 		Type: aws.String(reqType),
 	}
@@ -44,7 +62,7 @@ func (b *Bidder) CreateSpotRequest(price string, size string, amiID string, from
 	resp, err := b.svc.RequestSpotInstances(params)
 
 	if err != nil {
-		return requests, err
+		return requests, errors.New("Error creating spot request: " + err.Error())
 	}
 
 	// compile list
@@ -60,7 +78,7 @@ func (b *Bidder) CreateSpotRequest(price string, size string, amiID string, from
 		}
 		_, err := b.svc.CreateTags(params)
 		if err != nil {
-			return requests, err
+			return requests, errors.New("Error creating spot request: " + err.Error())
 		}
 		log.Printf("Created spot request: %v", req.Id)
 	}
@@ -69,6 +87,8 @@ func (b *Bidder) CreateSpotRequest(price string, size string, amiID string, from
 }
 
 func (b *Bidder) CancelSpotRequests() error {
+
+	log.Println("Cancelling outstanding spot requests")
 
 	reqs, err := b.GetSpotInstanceRequests()
 
@@ -79,7 +99,7 @@ func (b *Bidder) CancelSpotRequests() error {
 	var ids []*string
 	for _, req := range reqs {
 		ids = append(ids, &req.Id)
-		log.Println("Deleting spot request: %v", req.Id)
+		log.Println("Cancelling spot request:" + req.Id)
 	}
 
 	params := &ec2.CancelSpotInstanceRequestsInput{
