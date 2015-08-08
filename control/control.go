@@ -34,7 +34,6 @@ func (c *Controller) Start() {
 		for {
 			select {
 			case state := <-c.stateChan:
-				log.Println("got state")
 				c.state = state
 			case msg := <-c.ctrlChan:
 				switch msg.Get() {
@@ -103,7 +102,9 @@ func (c *Controller) Evac() {
 
 	c.mailer.Send(EvacuationMail(c.state.CurrentInstanceID, c.state.CurrentRegion, c.bidRegion))
 
-	c.ctrlChan <- &SaveState{}
+	c.stateChan <- c.state
+
+	// c.ctrlChan <- &SaveState{}
 
 	// terminate
 	comp := compute.New(c.state.CurrentRegion)
@@ -117,7 +118,5 @@ func (c *Controller) Evac() {
 func (c *Controller) Save() {
 
 	log.Println("Saving state")
-
-	c.stateChan <- c.state
 
 }

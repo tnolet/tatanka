@@ -46,6 +46,8 @@ func New(email string, region string) *Mailer {
 
 func (m *Mailer) Send(body string) {
 
+	log.Println("Sending mail...")
+
 	m.params.Message.Body.Text.Data = aws.String(body)
 	_, err := m.svc.SendEmail(m.params)
 	if err != nil {

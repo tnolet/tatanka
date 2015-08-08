@@ -20,7 +20,7 @@ Tatanka
 func EvacuationMail(instanceId string, region string, bidRegion string) string {
 	return fmt.Sprintf(`Hi,
 
-I'm evacuating instance %v in region %v. I did create a new spot request in %v. 
+I'm evacuating instance %v in region %v. I created a new spot request in %v. 
 Hope I see you again soon.
 
 Bye for now,

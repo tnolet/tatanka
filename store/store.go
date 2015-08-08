@@ -60,8 +60,8 @@ func (s *Store) Start() {
 
 		for {
 			select {
-			case state := <-s.stateChan:
-				s.PutState(state)
+			case _state := <-s.stateChan:
+				s.PutState(_state)
 			}
 		}
 	}()
