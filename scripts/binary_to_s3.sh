@@ -4,6 +4,7 @@ file=tatanka
 bucket="tnolet-tatanka"
 resource="/${bucket}/${file}"
 dateValue=`date -u +"%Y%m%dT%H%M%SZ"`
+auth_header="x-amz-acl:public-read"
 stringToSign="PUT\n\n${contentType}\n${dateValue}\n${resource}"
 s3Key=$AWS_ACCESS_KEY_ID
 s3Secret=$AWS_SECRET_ACCESS_KEY
@@ -15,4 +16,3 @@ curl -X PUT -T "${file}" \
   -H "Authorization: AWS ${s3Key}:${signature}" \
   https://${bucket}.s3.amazonaws.com/${file}
 
-    # -H "x-amz-acl: public-read" \

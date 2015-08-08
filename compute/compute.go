@@ -60,7 +60,7 @@ func GetCurrentInstanceID() (id string) {
 	}
 	id = string(body)
 
-	log.Println("Local instance ID is:" + id)
+	log.Println("Local instance ID is: " + id)
 
 	return id
 }

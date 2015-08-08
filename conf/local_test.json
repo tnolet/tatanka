@@ -7,7 +7,7 @@
     "bidPrice": 0.035,
     "bidRatio": 15,    
     "instanceType": "generalCurrentGen",
-    "instanceSize": "m4.xlarge",
+    "instanceSize": "m4.large",
     "regions": [
         "us-east-1",
         "us-west-2",    

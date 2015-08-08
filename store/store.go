@@ -12,11 +12,12 @@ import (
 )
 
 type Store struct {
-	homeRegion  string
-	homeBucket  string
-	homeKey     string
-	localConfig string
-	svc         *s3.S3
+	homeRegion string
+	homeBucket string
+	homeKey    string
+	localState string
+	svc        *s3.S3
+	stateChan  chan State
 }
 
 type State struct {
@@ -38,9 +39,32 @@ type State struct {
 	TwitterHandle      string
 }
 
-func New(region string, bucket string, key string, localConfig string) *Store {
+func New(region string, bucket string, key string, localState string, stateChan chan State) *Store {
 	svc := s3.New(&aws.Config{Region: region})
-	return &Store{region, bucket, key, localConfig, svc}
+	return &Store{region, bucket, key, localState, svc, stateChan}
+}
+
+func (s *Store) Start() {
+
+	log.Printf("Starting store...")
+
+	go func() {
+
+		state, err := s.GetState()
+
+		if err != nil {
+			log.Fatal("Error getting state...")
+		}
+
+		s.stateChan <- state
+
+		for {
+			select {
+			case state := <-s.stateChan:
+				s.PutState(state)
+			}
+		}
+	}()
 }
 
 func (s *Store) GetState() (state State, err error) {
@@ -48,7 +72,7 @@ func (s *Store) GetState() (state State, err error) {
 	var configDestination = "state.json"
 
 	// use bucket when there is no override
-	if len(s.localConfig) <= 0 {
+	if len(s.localState) <= 0 {
 
 		log.Println("Calling S3 Bucket for state...")
 
@@ -75,10 +99,10 @@ func (s *Store) GetState() (state State, err error) {
 		file.Close()
 
 	} else {
-		log.Printf("Using local file %v for state...", s.localConfig)
+		log.Printf("Using local file %v for state...", s.localState)
 
 		// use the local file directly
-		configDestination = s.localConfig
+		configDestination = s.localState
 	}
 
 	if s, err := ioutil.ReadFile(configDestination); err != nil {

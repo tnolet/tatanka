@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	UserData = `
-#!/bin/bash
+	UserData = `#!/bin/bash
 set -e -x
 echo "Getting tatanka..."
 curl -OL http://tnolet-tatanka.s3-eu-west-1.amazonaws.com/tatanka

@@ -13,6 +13,8 @@ type Mailer struct {
 
 func New(email string, region string) *Mailer {
 
+	log.Println("Initializing mailer...")
+
 	var m Mailer
 	m.svc = ses.New(&aws.Config{Region: region})
 	m.params = &ses.SendEmailInput{

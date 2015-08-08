@@ -20,7 +20,6 @@ var (
 	HomeEmail   = flag.String("homeEmail", "tim@magnetic.io", "Email address")
 	Port        = flag.Int("port", 1980, "Tatanka's API port")
 	Noop        = flag.Bool("noop", false, "Start in noop mode")
-	Store       *store.Store
 )
 
 func init() {
@@ -38,41 +37,28 @@ func main() {
 
 	log.Println("Starting Tatanka...")
 
-	// Call home and get state
+	// Create store with channel
+	stateChan := make(chan (store.State))
+
 	if len(*HomeBucket) > 0 || len(*HomeKey) > 0 || len(*localConfig) > 0 {
 
-		Store = store.New(*HomeRegion, *HomeBucket, *HomeKey, *localConfig)
+		store := store.New(*HomeRegion, *HomeBucket, *HomeKey, *localConfig, stateChan)
+		store.Start()
 
 	} else {
 		log.Fatal("Please provide a Home location")
 		os.Exit(1)
 	}
 
-	// fetch remote state
-	state, err := Store.GetState()
-	if err != nil {
-		log.Fatal("Error getting state: " + err.Error())
-	}
-
-	/*
-		######################
-		Initialize sub systems
-		######################
-	*/
-
-	log.Println("Initializing mailer...")
-
 	mailer := mailer.New(*HomeEmail, *HomeRegion)
 
 	controlChan := make(chan (control.Message))
-	controller := control.New(state, *mailer, controlChan)
+	controller := control.New(*mailer, controlChan, stateChan)
 
 	controller.Start()
 
 	controlChan <- &control.Init{}
 	controlChan <- &control.StartDeathWatch{}
-
-	log.Println("Initializing api...")
 
 	if api, err := api.New(Version); err != nil {
 		panic("failed to create REST Api")

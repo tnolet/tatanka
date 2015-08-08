@@ -12,21 +12,30 @@ type Controller struct {
 	state     store.State
 	mailer    mailer.Mailer
 	ctrlChan  chan Message
+	stateChan chan store.State
 	bidder    *bidder.Bidder
 	bidRegion string
 }
 
-func New(s store.State, m mailer.Mailer, c chan Message) *Controller {
-	return &Controller{state: s, mailer: m, ctrlChan: c}
+func New(m mailer.Mailer, c chan Message, s chan store.State) *Controller {
+	return &Controller{mailer: m, ctrlChan: c, stateChan: s}
 }
 
 func (c *Controller) Start() {
 
 	log.Printf("Starting controller...")
 
+	// only proceed once the state has loaded
+
+	c.state = <-c.stateChan
+	log.Println("got state")
+
 	go func() {
 		for {
 			select {
+			case state := <-c.stateChan:
+				log.Println("got state")
+				c.state = state
 			case msg := <-c.ctrlChan:
 				switch msg.Get() {
 				case "INIT":
@@ -35,6 +44,8 @@ func (c *Controller) Start() {
 					c.StartDeathWatch()
 				case "START_EVAC":
 					c.Evac()
+				case "SAVE_STATE":
+					c.Save()
 				}
 			}
 		}
@@ -43,14 +54,18 @@ func (c *Controller) Start() {
 
 func (c *Controller) Init() {
 
+	log.Println("Starting control initialization sequence...")
+
 	c.state.LastRegion = c.state.CurrentRegion
 	c.state.CurrentRegion = compute.GetCurrentRegion()
 	c.state.CurrentInstanceID = compute.GetCurrentInstanceID()
+	c.state.LastLifeTimeTarget = c.state.LifeTime
 
 	c.bidRegion = compute.GetRandomRegion(c.state.Regions)
 	c.bidder = bidder.New(c.state.PriceListUrl, c.bidRegion)
 	c.bidder.CancelSpotRequests()
 
+	// TODO: a routine when the bidprice is to high or isn't calculated correctly.
 	bidPrice, err := c.GetBidPrice()
 	if err != nil {
 		log.Println(err.Error())
@@ -88,6 +103,8 @@ func (c *Controller) Evac() {
 
 	c.mailer.Send(EvacuationMail(c.state.CurrentInstanceID, c.state.CurrentRegion, c.bidRegion))
 
+	c.ctrlChan <- &SaveState{}
+
 	// terminate
 	comp := compute.New(c.state.CurrentRegion)
 	_, err = comp.TerminateInstance(c.state.CurrentInstanceID)
@@ -95,4 +112,12 @@ func (c *Controller) Evac() {
 	if err != nil {
 		log.Println(err.Error())
 	}
+}
+
+func (c *Controller) Save() {
+
+	log.Println("Saving state")
+
+	c.stateChan <- c.state
+
 }
