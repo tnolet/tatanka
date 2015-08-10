@@ -16,6 +16,3 @@ type StartEvac struct{}
 
 func (StartEvac) Get() string { return "START_EVAC" }
 
-type SaveState struct{}
-
-func (SaveState) Get() string { return "SAVE_STATE" }

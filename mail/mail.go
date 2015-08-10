@@ -1,4 +1,4 @@
-package mailer
+package mail
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
@@ -9,18 +9,17 @@ import (
 type Mailer struct {
 	svc    *ses.SES
 	params *ses.SendEmailInput
+	mailChan  chan string
 }
 
-func New(email string, region string) *Mailer {
-
-	log.Println("Initializing mailer...")
+func New(toAddress string, region string, mailChan chan string) *Mailer {
 
 	var m Mailer
 	m.svc = ses.New(&aws.Config{Region: region})
 	m.params = &ses.SendEmailInput{
 		Destination: &ses.Destination{
 			ToAddresses: []*string{
-				aws.String(email),
+				aws.String(toAddress),
 			},
 		},
 		Message: &ses.Message{
@@ -41,10 +40,25 @@ func New(email string, region string) *Mailer {
 		},
 		ReturnPath: aws.String("tim@magnetic.io"),
 	}
+	m.mailChan = mailChan
 	return &m
 }
 
-func (m *Mailer) Send(body string) {
+func (m *Mailer) Start() {
+
+	log.Printf("Initializing mailer...")
+
+	go func() {
+		for {
+			select {
+			case mail := <-m.mailChan:
+				m.send(mail)
+			}
+		}
+	}()
+}
+
+func (m *Mailer) send(body string) {
 
 	log.Println("Sending mail...")
 

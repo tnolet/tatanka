@@ -22,6 +22,8 @@ curl -OL http://tnolet-tatanka.s3-eu-west-1.amazonaws.com/tatanka
 chmod +x tatanka
 ./tatanka
 `
+	tagKey = "bidder"
+	tagValue = "tatanka"
 )
 
 var (
@@ -85,11 +87,27 @@ func (b *Bidder) CreateSpotRequest(price string, size string, amiID string, from
 	return requests, nil
 }
 
+func (b *Bidder) SpotInstanceActive(reqID string) bool {
+
+	reqs, err := b.GetSpotInstanceRequests("fulfilled")
+
+	if err != nil {
+		return false
+	}
+
+	for _, req := range reqs {
+		if req.Id == reqID {
+			return true
+		}
+	}
+	return false
+}
+
 func (b *Bidder) CancelSpotRequests() error {
 
 	log.Println("Cancelling outstanding spot requests")
 
-	reqs, err := b.GetSpotInstanceRequests()
+	reqs, err := b.GetSpotInstanceRequests("open")
 
 	if err != nil {
 		return err
@@ -112,40 +130,12 @@ func (b *Bidder) CancelSpotRequests() error {
 	return nil
 }
 
-func (b *Bidder) GetSpotInstanceRequests() (requests []*SpotRequest, err error) {
+func (b *Bidder) GetSpotInstanceRequests(reqState string) (requests []*SpotRequest, err error) {
 
-	var state = "open"
-	var tagKey = "bidder"
-	var tagValue = "tatanka"
-	var reqType = "one-time"
+	reqType := "one-time"
 
 	params := &ec2.DescribeSpotInstanceRequestsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("state"),
-				Values: []*string{
-					aws.String(state),
-				},
-			},
-			{
-				Name: aws.String("tag-key"),
-				Values: []*string{
-					aws.String(tagKey),
-				},
-			},
-			{
-				Name: aws.String("tag-value"),
-				Values: []*string{
-					aws.String(tagValue),
-				},
-			},
-			{
-				Name: aws.String("type"),
-				Values: []*string{
-					aws.String(reqType),
-				},
-			},
-		},
+		Filters: filters(reqState, tagKey, tagValue,reqType),
 	}
 	resp, err := b.svc.DescribeSpotInstanceRequests(params)
 
@@ -255,4 +245,34 @@ func parsePageToJson(page []byte) (listJson string) {
 		listJS = strings.Replace(listJS, toReplace, replaceWith, -1)
 	}
 	return listJS
+}
+
+func filters(reqState string, tagKey string, tagValue string, reqType string) []*ec2.Filter {
+
+	return []*ec2.Filter{
+		{
+			Name: aws.String("state"),
+			Values: []*string{
+				aws.String(reqState),
+			},
+		},
+		{
+			Name: aws.String("tag-key"),
+			Values: []*string{
+				aws.String(tagKey),
+			},
+		},
+		{
+			Name: aws.String("tag-value"),
+			Values: []*string{
+				aws.String(tagValue),
+			},
+		},
+		{
+			Name: aws.String("type"),
+			Values: []*string{
+				aws.String(reqType),
+			},
+		},
+	}
 }

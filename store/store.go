@@ -9,13 +9,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 )
 
 type Store struct {
 	homeRegion string
 	homeBucket string
 	homeKey    string
-	localState string
+	localConfig string
 	svc        *s3.S3
 	stateChan  chan State
 }
@@ -34,19 +35,24 @@ type State struct {
 	CurrentRegion      string
 	CurrentInstanceID  string
 	LastRegion         string
+	LastBidRegion 	   string
+	CurrentBidRegion   string
+	LastReqID		   string
+	CurrentReqID	   string
 	PriceListUrl       string
 	TerminationUrl     string
 	TwitterHandle      string
+	StartTime 		   time.Time `json:"-"`
 }
 
-func New(region string, bucket string, key string, localState string, stateChan chan State) *Store {
+func New(region string, bucket string, key string, localConfig string, stateChan chan State) *Store {
 	svc := s3.New(&aws.Config{Region: region})
-	return &Store{region, bucket, key, localState, svc, stateChan}
+	return &Store{region, bucket, key, localConfig, svc, stateChan}
 }
 
 func (s *Store) Start() {
 
-	log.Printf("Starting store...")
+	log.Printf("Initializing store...")
 
 	go func() {
 
@@ -72,7 +78,7 @@ func (s *Store) GetState() (state State, err error) {
 	var configDestination = "state.json"
 
 	// use bucket when there is no override
-	if len(s.localState) <= 0 {
+	if len(s.localConfig) <= 0 {
 
 		log.Println("Calling S3 Bucket for state...")
 
@@ -80,29 +86,22 @@ func (s *Store) GetState() (state State, err error) {
 			Bucket: aws.String(s.homeBucket),
 			Key:    aws.String(s.homeKey),
 		})
-
 		if err != nil {
 			return state, err
 		}
-
 		file, err := os.Create(configDestination)
 		if err != nil {
 			return state, err
 		}
-
 		if _, err := io.Copy(file, result.Body); err != nil {
 			return state, err
 		}
-
-		// download the full file
 		result.Body.Close()
 		file.Close()
 
 	} else {
-		log.Printf("Using local file %v for state...", s.localState)
-
-		// use the local file directly
-		configDestination = s.localState
+		log.Printf("Using local file %v for state...", s.localConfig)
+		configDestination = s.localConfig
 	}
 
 	if s, err := ioutil.ReadFile(configDestination); err != nil {
@@ -112,7 +111,6 @@ func (s *Store) GetState() (state State, err error) {
 			return state, err
 		}
 	}
-
 	return state, nil
 }
 
@@ -128,7 +126,6 @@ func (s *Store) PutState(state State) error {
 		Body:        bytes.NewReader([]byte(stateJson)),
 		ContentType: aws.String("application/json"),
 	}
-
 	_, err := s.svc.PutObject(params)
 
 	if err != nil {

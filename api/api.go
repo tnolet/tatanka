@@ -2,11 +2,12 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/tnolet/tatanka/control"
 	"log"
 	"net/http"
 )
 
-func New(version string) (*gin.Engine, error) {
+func New(version string, ctrl *control.Controller) (*gin.Engine, error) {
 
 	log.Println("Initializing api...")
 
@@ -17,6 +18,10 @@ func New(version string) (*gin.Engine, error) {
 	{
 		r.GET("/version", func(c *gin.Context) {
 			c.JSON(http.StatusOK, version)
+		})
+
+		r.GET("/state", func(c *gin.Context) {
+			c.JSON(http.StatusOK, ctrl.State())
 		})
 	}
 	return r, nil

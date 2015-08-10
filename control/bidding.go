@@ -14,6 +14,12 @@ import (
 */
 
 func (c *Controller) GetValidBidWindow(lifeTime int, offset int, window int) (from time.Time, till time.Time) {
+
+	if (offset < lifeTime || lifeTime == 0 || window == 0) {
+		log.Fatalf("Invalid lifetime %v, offset %v or window %v", lifeTime, offset, window)
+		return from,till
+	}
+
 	now := time.Now()
 	from = now.Add(time.Duration(lifeTime-offset) * time.Second)
 	till = now.Add(time.Duration((lifeTime-offset)+window) * time.Second)

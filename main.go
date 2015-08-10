@@ -5,12 +5,15 @@ import (
 	"github.com/tnolet/tatanka/api"
 	"github.com/tnolet/tatanka/control"
 	"github.com/tnolet/tatanka/helpers"
-	"github.com/tnolet/tatanka/mailer"
+	"github.com/tnolet/tatanka/mail"
 	"github.com/tnolet/tatanka/store"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 )
+
+const Version = "0.1.0"
 
 var (
 	HomeRegion  = flag.String("homeRegion", "eu-west-1", "Home region")
@@ -20,13 +23,17 @@ var (
 	HomeEmail   = flag.String("homeEmail", "tim@magnetic.io", "Email address")
 	Port        = flag.Int("port", 1980, "Tatanka's API port")
 	Noop        = flag.Bool("noop", false, "Start in noop mode")
+	NumCPU      int
 )
 
 func init() {
 	log.SetFlags(log.LstdFlags)
+	NumCPU = runtime.NumCPU()
+	runtime.GOMAXPROCS(NumCPU)
 }
 
 func main() {
+
 	flag.Parse()
 	helpers.SetValueFromEnv(&HomeRegion, "TATANKA_HOME_REGION")
 	helpers.SetValueFromEnv(&HomeBucket, "TATANKA_HOME_BUCKET")
@@ -37,33 +44,34 @@ func main() {
 
 	log.Println("Starting Tatanka...")
 
-	// Create store with channel
+	mailChan := make(chan string, 100)
+	mailer := mail.New(*HomeEmail, *HomeRegion, mailChan)
+	mailer.Start()
+
 	stateChan := make(chan (store.State))
 
 	if len(*HomeBucket) > 0 || len(*HomeKey) > 0 || len(*localConfig) > 0 {
 
-		store := store.New(*HomeRegion, *HomeBucket, *HomeKey, *localConfig, stateChan)
-		store.Start()
+		Store := store.New(*HomeRegion, *HomeBucket, *HomeKey, *localConfig, stateChan)
+		Store.Start()
 
 	} else {
 		log.Fatal("Please provide a Home location")
+		mailChan <- control.FatalErrorMail("No or invalid home location")
 		os.Exit(1)
 	}
 
-	mailer := mailer.New(*HomeEmail, *HomeRegion)
-
 	controlChan := make(chan (control.Message))
-	controller := control.New(*mailer, controlChan, stateChan)
+	controller := control.New(mailChan, controlChan, stateChan)
 
 	controller.Start()
 
 	controlChan <- &control.Init{}
 	controlChan <- &control.StartDeathWatch{}
 
-	if api, err := api.New(Version); err != nil {
+	if Api, err := api.New(Version, controller); err != nil {
 		panic("failed to create REST Api")
 	} else {
-		api.Run("0.0.0.0:" + strconv.Itoa(*Port))
+		Api.Run("0.0.0.0:" + strconv.Itoa(*Port))
 	}
-
 }

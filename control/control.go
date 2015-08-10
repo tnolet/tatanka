@@ -3,32 +3,29 @@ package control
 import (
 	"github.com/tnolet/tatanka/bidder"
 	"github.com/tnolet/tatanka/compute"
-	"github.com/tnolet/tatanka/mailer"
 	"github.com/tnolet/tatanka/store"
 	"log"
+	"time"
 )
 
 type Controller struct {
 	state     store.State
-	mailer    mailer.Mailer
+	mailChan  chan string
 	ctrlChan  chan Message
 	stateChan chan store.State
 	bidder    *bidder.Bidder
-	bidRegion string
 }
 
-func New(m mailer.Mailer, c chan Message, s chan store.State) *Controller {
-	return &Controller{mailer: m, ctrlChan: c, stateChan: s}
+func New(m chan string, c chan Message, s chan store.State) *Controller {
+	return &Controller{mailChan: m, ctrlChan: c, stateChan: s}
 }
 
 func (c *Controller) Start() {
 
-	log.Printf("Starting controller...")
+	log.Printf("Initializing controller...")
 
 	// only proceed once the state has loaded
-
 	c.state = <-c.stateChan
-	log.Println("got state")
 
 	go func() {
 		for {
@@ -43,80 +40,104 @@ func (c *Controller) Start() {
 					c.StartDeathWatch()
 				case "START_EVAC":
 					c.Evac()
-				case "SAVE_STATE":
-					c.Save()
 				}
 			}
 		}
 	}()
 }
 
+func (c *Controller) State() *store.State {
+	return &c.state
+}
+
 func (c *Controller) Init() {
 
 	log.Println("Starting control initialization sequence...")
 
-	c.state.LastRegion = c.state.CurrentRegion
-	c.state.CurrentRegion = compute.GetCurrentRegion()
-	c.state.CurrentInstanceID = compute.GetCurrentInstanceID()
-	c.state.LastLifeTimeTarget = c.state.LifeTime
-
-	c.bidRegion = compute.GetRandomRegion(c.state.Regions)
-	c.bidder = bidder.New(c.state.PriceListUrl, c.bidRegion)
+	c.prepLocalStateOnInit()
+	c.bidder = bidder.New(c.state.PriceListUrl, c.state.CurrentBidRegion)
 	c.bidder.CancelSpotRequests()
 
-	// TODO: a routine when the bidprice is to high or isn't calculated correctly.
 	bidPrice, err := c.GetBidPrice()
 	if err != nil {
-		log.Println(err.Error())
+		c.mailChan <- FatalErrorMail("Error getting a bid price: " + err.Error())
+		log.Fatal(err.Error())
 	}
 
-	amiID := compute.GetLinuxAMIforRegion(c.bidRegion)
+	amiID := compute.GetLinuxAMIforRegion(c.state.CurrentBidRegion)
 	from, till := c.GetValidBidWindow(c.state.LifeTime, c.state.BidOffset, c.state.BidWindow)
-	_, err = c.bidder.CreateSpotRequest(bidPrice, c.state.InstanceSize, amiID, from, till)
+	reqs, err := c.bidder.CreateSpotRequest(bidPrice, c.state.InstanceSize, amiID, from, till)
+
 	if err != nil {
-		log.Println("Error creating spot request: ", err.Error())
+		c.mailChan <- FatalErrorMail("Error creating a spot request: " + err.Error())
+		log.Fatal("Error creating spot request: ", err.Error())
 	}
-	c.mailer.Send(InitMail(c.state.CurrentInstanceID, c.state.CurrentRegion, c.state.LifeTime, c.bidRegion))
+
+	c.state.LastReqID = c.state.CurrentReqID
+	c.state.CurrentReqID = reqs[0].Id
+
+	c.mailChan <- InitMail(c.state.CurrentInstanceID,
+		c.state.CurrentRegion,
+		c.state.LifeTime,
+		c.state.CurrentBidRegion,
+		c.state.CurrentReqID)
 }
 
 func (c *Controller) Evac() {
 
 	log.Println("Starting evacuation sequence")
 
-	c.bidder.CancelSpotRequests()
+	/*	Before evac, check if the spot request created during INIT has already been fulfilled.
+		If this is not the case, cancel it and create a brand new one.
+	*/
+	if c.bidder.SpotInstanceActive(c.state.CurrentReqID) != true {
+		c.bidder.CancelSpotRequests()
 
-	bidPrice, err := c.GetBidPrice()
-	if err != nil {
-		log.Println(err.Error())
+		bidPrice, err := c.GetBidPrice()
+		if err != nil {
+			c.mailChan <- FatalErrorMail("Error getting a bid price: " + err.Error())
+			log.Fatal(err.Error())
+		}
+		amiID := compute.GetLinuxAMIforRegion(c.state.CurrentBidRegion)
+
+		// make bid valid from + 1 minute till the bidwindow.
+		from, till := c.GetValidBidWindow(60, 0, c.state.BidWindow)
+		reqs, err := c.bidder.CreateSpotRequest(bidPrice, c.state.InstanceSize, amiID, from, till)
+
+		if err != nil {
+			c.mailChan <- FatalErrorMail("Error creating a spot request before evac: " + err.Error())
+			log.Fatal("Error creating spot request: ", err.Error())
+		}
+
+		c.state.LastReqID = c.state.CurrentReqID
+		c.state.CurrentReqID = reqs[0].Id
 	}
 
-	amiID := compute.GetLinuxAMIforRegion(c.bidRegion)
-
-	// make bid valid from + 1 minute till the bidwindow.
-	from, till := c.GetValidBidWindow(60, 0, c.state.BidWindow)
-	_, err = c.bidder.CreateSpotRequest(bidPrice, c.state.InstanceSize, amiID, from, till)
-
-	if err != nil {
-		log.Println(err.Error())
-	}
-
-	c.mailer.Send(EvacuationMail(c.state.CurrentInstanceID, c.state.CurrentRegion, c.bidRegion))
-
+	c.prepLocalStateOnEvac()
+	c.mailChan <- EvacuationMail(c.state.CurrentInstanceID, c.state.CurrentRegion, c.state.CurrentBidRegion)
 	c.stateChan <- c.state
-
-	// c.ctrlChan <- &SaveState{}
 
 	// terminate
 	comp := compute.New(c.state.CurrentRegion)
-	_, err = comp.TerminateInstance(c.state.CurrentInstanceID)
+	_, err := comp.TerminateInstance(c.state.CurrentInstanceID)
 
 	if err != nil {
 		log.Println(err.Error())
 	}
 }
 
-func (c *Controller) Save() {
+// simple helper to encapsulate all boring init functions
+func (c *Controller) prepLocalStateOnInit() {
+	c.state.LastRegion = c.state.CurrentRegion
+	c.state.CurrentRegion = compute.GetCurrentRegion()
+	c.state.CurrentInstanceID = compute.GetCurrentInstanceID()
+	c.state.LastLifeTimeTarget = c.state.LifeTime
+	c.state.StartTime = time.Now()
 
-	log.Println("Saving state")
+	c.state.LastBidRegion = c.state.CurrentBidRegion
+	c.state.CurrentBidRegion = compute.GetRandomRegion(c.state.Regions)
+}
 
+func (c *Controller) prepLocalStateOnEvac() {
+	c.state.LastLifeTimeActual = int(time.Duration.Seconds(time.Since(c.state.StartTime)))
 }

@@ -10,3 +10,9 @@ run tatanka in test mode
 ./tatanka -localConfig="conf/local_test.json" -noop=true
 ```
     
+## TODO
+
+[x] Do not make an extra spot requests on evac when the initial spot request has already been honored.  
+[x] validate time ranges input (e.g. bid offset < lifetime).  
+[] retry cancelling of spot requests when request not found.  
+[] AWS Dry run with NOOP mode.  

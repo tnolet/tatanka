@@ -8,9 +8,11 @@ import (
 
 /*
 Termination checker loops and checks for termination every 5 seconds.
-It also takes in the total lifetime.
+It also takes into account the total lifetime.
 If the lifetime is reached, or the instance is scheduled to be terminated,
-a true value will be send over the evac channel.
+a StartEvac message is send over the control channel.
+Every 12 checks (1 minute) it will log its state.
+Every 720 check (1 hour) it will send a short update email
 */
 func (c *Controller) StartDeathWatch() {
 
@@ -18,6 +20,7 @@ func (c *Controller) StartDeathWatch() {
 	evacTime := now.Add(time.Duration(c.state.LifeTime) * time.Second)
 	ticker := time.NewTicker(5 * time.Second)
 	evacNotice := false
+	counter := 0
 
 	log.Printf("Starting death watch with life time till %v", evacTime)
 
@@ -25,11 +28,18 @@ func (c *Controller) StartDeathWatch() {
 		for evacNotice == false {
 			select {
 			case <-ticker.C:
+				counter += counter
 				if compute.InstanceToBeTerminated(c.state.TerminationUrl) || time.Now().After(evacTime) {
 					evacNotice = true
 					c.ctrlChan <- &StartEvac{}
 				} else {
-					log.Println("Deathwatch ticker: OK")
+					if counter == 12 {
+						log.Println("Deathwatch ticker: OK")
+					}
+					if counter == 720 {
+						uptime := int(time.Duration.Seconds(time.Since(c.state.StartTime)))
+						c.mailChan <- CasualUpdateMail(uptime,c.state.CurrentRegion)
+					}
 				}
 			}
 		}
