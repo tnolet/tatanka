@@ -15,9 +15,9 @@ import (
 
 func (c *Controller) GetValidBidWindow(lifeTime int, offset int, window int) (from time.Time, till time.Time) {
 
-	if (offset < lifeTime || lifeTime == 0 || window == 0) {
+	if offset > lifeTime || lifeTime == 0 || window == 0 {
 		log.Fatalf("Invalid lifetime %v, offset %v or window %v", lifeTime, offset, window)
-		return from,till
+		return from, till
 	}
 
 	now := time.Now()
@@ -30,14 +30,10 @@ func (c *Controller) GetValidBidWindow(lifeTime int, offset int, window int) (fr
 /*
 
 Rules regarding price: just calculate the spotprice + the ration in percentage, i,e:
-
-spotprice = 0.5
-ratio = 35%
-
-bidprice = 0.5 * 1.35
-
+	- spotprice = 0.5
+	- ratio = 35%
+	- bidprice = 0.5 * 1.35
 however, the resulting bidprice cannot be higher than or equal to the ondemand price
-
 */
 func (c *Controller) GetBidPrice() (bidprice string, err error) {
 

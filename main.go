@@ -62,7 +62,7 @@ func main() {
 	}
 
 	controlChan := make(chan (control.Message))
-	controller := control.New(mailChan, controlChan, stateChan)
+	controller := control.New(mailChan, controlChan, stateChan, *Noop)
 
 	controller.Start()
 
