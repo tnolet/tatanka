@@ -4,6 +4,7 @@ import (
 	"github.com/tnolet/tatanka/bidder"
 	"github.com/tnolet/tatanka/compute"
 	"github.com/tnolet/tatanka/store"
+	"github.com/tnolet/tatanka/work"
 	"log"
 	"time"
 )
@@ -13,12 +14,16 @@ type Controller struct {
 	mailChan  chan string
 	ctrlChan  chan Message
 	stateChan chan store.State
+	workChan  chan work.WorkPackage
 	bidder    *bidder.Bidder
 	noop      bool
 }
 
 func New(m chan string, c chan Message, s chan store.State, noop bool) *Controller {
-	return &Controller{mailChan: m, ctrlChan: c, stateChan: s, noop: noop}
+
+	w := make(chan work.WorkPackage, 100)
+
+	return &Controller{mailChan: m, ctrlChan: c, stateChan: s, workChan: w, noop: noop}
 }
 
 func (c *Controller) Start() {
@@ -51,10 +56,6 @@ func (c *Controller) Start() {
 
 func (c *Controller) State() *store.State {
 	return &c.state
-}
-
-func (c *Controller) StartWork() {
-	log.Println("start work")
 }
 
 // simple helper to encapsulate all boring init functions

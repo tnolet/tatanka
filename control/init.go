@@ -10,8 +10,9 @@ func (c *Controller) Init() {
 
 	log.Println("Starting control initialization sequence...")
 
-	c.prepLocalStateOnInit()
 	if !c.noop {
+
+		c.prepLocalStateOnInit()
 
 		c.bidder = bidder.New(c.state.PriceListUrl, c.state.CurrentBidRegion)
 		c.bidder.CancelSpotRequests()
@@ -40,4 +41,6 @@ func (c *Controller) Init() {
 			c.state.CurrentBidRegion,
 			c.state.CurrentReqID)
 	}
+
+	c.ctrlChan <- &StartWork{}
 }

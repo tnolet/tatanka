@@ -13,12 +13,12 @@ import (
 )
 
 type Store struct {
-	homeRegion string
-	homeBucket string
-	homeKey    string
+	homeRegion  string
+	homeBucket  string
+	homeKey     string
 	localConfig string
-	svc        *s3.S3
-	stateChan  chan State
+	svc         *s3.S3
+	stateChan   chan State
 }
 
 type State struct {
@@ -35,14 +35,15 @@ type State struct {
 	CurrentRegion      string
 	CurrentInstanceID  string
 	LastRegion         string
-	LastBidRegion 	   string
+	LastBidRegion      string
 	CurrentBidRegion   string
-	LastReqID		   string
-	CurrentReqID	   string
+	LastReqID          string
+	CurrentReqID       string
 	PriceListUrl       string
+	QueueUrl           string
 	TerminationUrl     string
 	TwitterHandle      string
-	StartTime 		   time.Time `json:"-"`
+	StartTime          time.Time `json:"-"`
 }
 
 func New(region string, bucket string, key string, localConfig string, stateChan chan State) *Store {
