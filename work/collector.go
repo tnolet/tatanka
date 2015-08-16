@@ -7,20 +7,6 @@ import (
 	"log"
 )
 
-type Collector interface {
-	GetWork()
-	PutWork(string)
-}
-
-type WorkCollector struct {
-	svc *sqs.SQS
-	url string
-}
-
-type WorkPackage struct {
-	Subjects []string
-}
-
 func NewWorkCollector(url string) *WorkCollector {
 	log.Println("Initializing work collector for queue: ", url)
 
@@ -73,7 +59,6 @@ func (w *WorkCollector) PutWork(msg string) (err error) {
 func parseMessage(msg string) *WorkPackage {
 
 	var workPackage WorkPackage
-
 	if err := json.Unmarshal([]byte(msg), &workPackage); err != nil {
 		log.Println("Error parsing message to work package", err.Error())
 	}

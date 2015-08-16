@@ -14,14 +14,14 @@ type Controller struct {
 	mailChan  chan string
 	ctrlChan  chan Message
 	stateChan chan store.State
-	workChan  chan work.WorkPackage
+	workChan  chan work.WorkItem
 	bidder    *bidder.Bidder
 	noop      bool
 }
 
 func New(m chan string, c chan Message, s chan store.State, noop bool) *Controller {
 
-	w := make(chan work.WorkPackage, 100)
+	w := make(chan work.WorkItem, 1000)
 
 	return &Controller{mailChan: m, ctrlChan: c, stateChan: s, workChan: w, noop: noop}
 }
@@ -30,7 +30,6 @@ func (c *Controller) Start() {
 
 	log.Printf("Initializing controller...")
 
-	// only proceed once the state has loaded
 	c.state = <-c.stateChan
 
 	go func() {

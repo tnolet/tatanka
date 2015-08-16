@@ -2,45 +2,36 @@ package work
 
 import (
 	"log"
+	"os/exec"
+	"strings"
 	"time"
 )
 
-// NewWorker creates, and returns a new Worker object. Its only argument
-// is a channel that the worker can add itself to whenever it is done its
-// work.
-func NewWorker(id int, workerQueue chan chan WorkPackage) Worker {
-	// Create, and return the worker.
+const (
+	container = "tnolet/scraper:0.1.0"
+)
+
+func New(id int, workerQueue chan chan WorkItem) Worker {
 	worker := Worker{
 		ID:          id,
-		Work:        make(chan WorkPackage),
+		Work:        make(chan WorkItem),
 		WorkerQueue: workerQueue,
-		QuitChan:    make(chan bool)}
+		QuitChan:    make(chan bool),
+	}
 
 	return worker
 }
 
-type Worker struct {
-	ID          int
-	Work        chan WorkPackage
-	WorkerQueue chan chan WorkPackage
-	QuitChan    chan bool
-}
-
-// This function "starts" the worker by starting a goroutine, that is
-// an infinite "for-select" loop.
 func (w Worker) Start() {
 	go func() {
 		for {
-			// Add ourselves into the worker queue.
 			w.WorkerQueue <- w.Work
-
 			select {
-			case work := <-w.Work:
-				// Receive a work request.
-				log.Printf("worker%d: Received work request: %v", w.ID, work.Subjects[0])
-				time.Sleep(5 * time.Second)
+			case workItem := <-w.Work:
+				log.Printf("worker%d: Received work request: %v", w.ID, workItem)
+				runScraper(workItem)
+				time.Sleep(4 * time.Second)
 			case <-w.QuitChan:
-				// We have been asked to stop.
 				log.Printf("worker%d stopping\n", w.ID)
 				return
 			}
@@ -48,11 +39,35 @@ func (w Worker) Start() {
 	}()
 }
 
-// Stop tells the worker to stop listening for work requests.
-//
-// Note that the worker will only stop *after* it has finished its work.
 func (w Worker) Stop() {
 	go func() {
 		w.QuitChan <- true
 	}()
+}
+
+func runScraper(item WorkItem) error {
+	// scrapy crawl abc -a subject="My Subject" -a query="My+Subject"
+
+	crawl := "crawl"
+	site := "abc"
+	arg := "-a"
+	subject := "subject='" + string(item) + "'"
+	query := "query=" + strings.Replace(string(item), " ", "-", -1)
+	cmd := exec.Command(
+		"/usr/local/bin/docker",
+		"run",
+		container,
+		crawl,
+		site,
+		arg,
+		subject,
+		arg,
+		query)
+
+	err := cmd.Run()
+	if err != nil {
+		log.Println("command unsuccessful:", err.Error())
+		return err
+	}
+	return nil
 }

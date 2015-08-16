@@ -6,6 +6,7 @@ import (
 	"log"
 )
 
+// Initializes state and the bidder. Starts the Work routine at the end.
 func (c *Controller) Init() {
 
 	log.Println("Starting control initialization sequence...")

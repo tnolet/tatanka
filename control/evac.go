@@ -41,7 +41,9 @@ func (c *Controller) Evac() {
 		c.prepLocalStateOnEvac()
 		c.mailChan <- EvacuationMail(c.state.CurrentInstanceID, c.state.CurrentRegion, c.state.CurrentBidRegion)
 		c.stateChan <- c.state
+	}
 
+	if !noop {
 		// terminate
 		comp := compute.New(c.state.CurrentRegion)
 		_, err := comp.TerminateInstance(c.state.CurrentInstanceID)
@@ -49,7 +51,8 @@ func (c *Controller) Evac() {
 		if err != nil {
 			log.Println(err.Error())
 		}
-	} else {
-		os.Exit(0)
 	}
+
+	os.Exit(0)
+
 }

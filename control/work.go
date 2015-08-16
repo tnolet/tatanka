@@ -7,7 +7,7 @@ import (
 
 func (c *Controller) StartWork() {
 
-	work.StartDispatcher(c.workChan, 4)
+	work.StartDispatcher(c.workChan, 5)
 	collector := work.NewWorkCollector(c.state.QueueUrl)
 
 	workPackages, err := collector.GetWork()
@@ -15,9 +15,20 @@ func (c *Controller) StartWork() {
 		log.Println(err.Error())
 	}
 
-	for i := 0; i < 100; i++ {
-		log.Printf("sending work package %d", i)
-		c.workChan <- *workPackages[0]
-	}
+	/*
+	    loop over received work packages and pops of
+		   work items into the work channel.
+	*/
+	for _, pkg := range workPackages {
+		count := 0
+		for {
+			item := pkg.Shift()
+			count += 1
+			if item == "" || count == 5 {
+				break
+			}
+			c.workChan <- item
+		}
 
+	}
 }
