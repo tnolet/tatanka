@@ -7,7 +7,9 @@ import (
 
 func (c *Controller) StartWork() {
 
-	var err error
+	defer func() {
+		recover()
+	}()
 
 	// Dispatcher
 	doneChannel := make(chan work.WorkItem, c.state.WorkerAmount)
@@ -31,30 +33,29 @@ func (c *Controller) StartWork() {
 		}
 	}()
 
-	// Collector
-	log.Println("Starting work dispatcher and collecting work...")
-	c.collector = work.NewWorkCollector(c.state.QueueUrl)
+	pkgChannel := make(chan work.WorkPackage, 100)
+	c.collector = work.NewWorkCollector(c.state.QueueUrl, pkgChannel)
+	c.collector.Start()
 
-	workPackages, err := c.collector.GetWork()
-
-	if err != nil {
-		log.Println(err.Error())
-	}
-
-	// create a map of all work items and mark then as new
-	for _, pkg := range workPackages {
-		for _, item := range pkg.WorkItems {
-			c.workMap[item] = "todo"
-		}
-	}
-
-	// shovel work into the work channel
+	// grab packages
 	go func() {
-		for k, _ := range c.workMap {
-			if c.moreWork {
-				c.workChan <- k
-			} else {
-				close(c.workChan)
+		for {
+			select {
+			case pkg := <-pkgChannel:
+				for _, item := range pkg.WorkItems {
+					c.workMap[item] = "todo"
+				}
+				// shovel work into the work channel
+				go func() {
+					for k, _ := range c.workMap {
+						if c.moreWork {
+							c.workChan <- k
+						} else {
+							close(pkgChannel)
+							close(c.workChan)
+						}
+					}
+				}()
 			}
 		}
 	}()
@@ -94,11 +95,14 @@ func (c *Controller) StopWork() {
 		}
 	}
 
-	pkg := &work.WorkPackage{WorkItems: items}
-	pkgs = append(pkgs, pkg)
+	// only save it if there is anything to save
+	if len(items) > 0 {
+		pkg := &work.WorkPackage{WorkItems: items}
+		pkgs = append(pkgs, pkg)
 
-	if err := c.collector.PutWork(pkgs); err != nil {
-		log.Println("Error putting work:", err.Error())
+		if err := c.collector.PutWork(pkgs); err != nil {
+			log.Println("Error putting work:", err.Error())
+		}
 	}
 
 	c.ctrlChan <- &StartEvac{}

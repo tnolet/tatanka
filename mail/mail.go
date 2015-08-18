@@ -7,15 +7,15 @@ import (
 )
 
 type Mailer struct {
-	svc    *ses.SES
-	params *ses.SendEmailInput
-	mailChan  chan string
+	svc      *ses.SES
+	params   *ses.SendEmailInput
+	mailChan chan string
 }
 
 func New(toAddress string, region string, mailChan chan string) *Mailer {
 
 	var m Mailer
-	m.svc = ses.New(&aws.Config{Region: region})
+	m.svc = ses.New(&aws.Config{Region: &region})
 	m.params = &ses.SendEmailInput{
 		Destination: &ses.Destination{
 			ToAddresses: []*string{

@@ -30,7 +30,7 @@ func (w Worker) Start() {
 			select {
 			case workItem := <-w.Work:
 
-				log.Printf("Worker %d received job request: %v", w.ID, workItem)
+				log.Printf("Worker %d received job: %v", w.ID, workItem)
 
 				jobDone := make(chan bool)
 

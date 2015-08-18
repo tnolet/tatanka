@@ -48,7 +48,7 @@ type State struct {
 }
 
 func New(region string, bucket string, key string, localConfig string, stateChan chan State) *Store {
-	svc := s3.New(&aws.Config{Region: region})
+	svc := s3.New(&aws.Config{Region: &region})
 	return &Store{region, bucket, key, localConfig, svc, stateChan}
 }
 

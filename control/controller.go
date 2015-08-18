@@ -56,10 +56,8 @@ func (c *Controller) Start() {
 					c.StartDeathWatch()
 				case "START_WORK":
 					c.StartWork()
-					log.Println("Start work returned")
 				case "STOP_WORK":
 					c.StopWork()
-					log.Println("Stop work returned")
 				case "START_EVAC":
 					c.Evac()
 				}

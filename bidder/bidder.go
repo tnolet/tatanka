@@ -22,7 +22,7 @@ curl -OL http://tnolet-tatanka.s3-eu-west-1.amazonaws.com/tatanka
 chmod +x tatanka
 ./tatanka
 `
-	tagKey = "bidder"
+	tagKey   = "bidder"
 	tagValue = "tatanka"
 )
 
@@ -32,10 +32,10 @@ var (
 
 func New(priceList string, region string) *Bidder {
 	log.Println("Initializing bidder for region:", region)
-	return &Bidder{priceList, ec2.New(&aws.Config{Region: region}), region}
+	return &Bidder{priceList, ec2.New(&aws.Config{Region: &region}), region}
 }
 
-func (b *Bidder) CreateSpotRequest(price string, size string, amiID string, from time.Time, till time.Time) (requests []*SpotRequest, err error) {
+func (b *Bidder) CreateSpotRequest(price string, size string, amiId string, from time.Time, till time.Time) (requests []*SpotRequest, err error) {
 
 	// var keyName = "aws_dcos"
 	var amount int64 = 1
@@ -50,11 +50,11 @@ func (b *Bidder) CreateSpotRequest(price string, size string, amiID string, from
 		ValidUntil:    &till,
 		LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
 			InstanceType: aws.String(size),
-			ImageID:      aws.String(amiID),
+			ImageId:      aws.String(amiId),
 			// KeyName:      aws.String(keyName),
 			UserData: aws.String(base64UserData),
-			IAMInstanceProfile: &ec2.IAMInstanceProfileSpecification{
-				ARN: &IAMRoleARN,
+			IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+				Arn: &IAMRoleARN,
 			},
 		},
 		Type: aws.String(reqType),
@@ -68,7 +68,7 @@ func (b *Bidder) CreateSpotRequest(price string, size string, amiID string, from
 
 	// compile list
 	for _, req := range resp.SpotInstanceRequests {
-		requests = append(requests, &SpotRequest{Id: *req.SpotInstanceRequestID})
+		requests = append(requests, &SpotRequest{Id: *req.SpotInstanceRequestId})
 	}
 
 	// tag them
@@ -87,7 +87,7 @@ func (b *Bidder) CreateSpotRequest(price string, size string, amiID string, from
 	return requests, nil
 }
 
-func (b *Bidder) SpotInstanceActive(reqID string) bool {
+func (b *Bidder) SpotInstanceActive(reqId string) bool {
 
 	reqs, err := b.GetSpotInstanceRequests("fulfilled")
 
@@ -96,7 +96,7 @@ func (b *Bidder) SpotInstanceActive(reqID string) bool {
 	}
 
 	for _, req := range reqs {
-		if req.Id == reqID {
+		if req.Id == reqId {
 			return true
 		}
 	}
@@ -120,7 +120,7 @@ func (b *Bidder) CancelSpotRequests() error {
 	}
 
 	params := &ec2.CancelSpotInstanceRequestsInput{
-		SpotInstanceRequestIDs: ids,
+		SpotInstanceRequestIds: ids,
 	}
 	_, err = b.svc.CancelSpotInstanceRequests(params)
 
@@ -135,7 +135,7 @@ func (b *Bidder) GetSpotInstanceRequests(reqState string) (requests []*SpotReque
 	reqType := "one-time"
 
 	params := &ec2.DescribeSpotInstanceRequestsInput{
-		Filters: filters(reqState, tagKey, tagValue,reqType),
+		Filters: filters(reqState, tagKey, tagValue, reqType),
 	}
 	resp, err := b.svc.DescribeSpotInstanceRequests(params)
 
@@ -144,7 +144,7 @@ func (b *Bidder) GetSpotInstanceRequests(reqState string) (requests []*SpotReque
 	}
 
 	for _, req := range resp.SpotInstanceRequests {
-		requests = append(requests, &SpotRequest{Id: *req.SpotInstanceRequestID})
+		requests = append(requests, &SpotRequest{Id: *req.SpotInstanceRequestId})
 	}
 
 	return requests, nil

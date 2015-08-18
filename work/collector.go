@@ -5,68 +5,82 @@ import (
 	"errors"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"log"
+	"time"
 )
 
-func NewWorkCollector(url string) *WorkCollector {
-	log.Println("Initializing work collector for queue: ", url)
+func NewWorkCollector(url string, pkgChan chan WorkPackage) *WorkCollector {
 
 	svc := sqs.New(nil)
-	return &WorkCollector{svc: svc, url: url}
+	return &WorkCollector{svc: svc, url: url, pkgChan: pkgChan}
 
 }
 
-func (w *WorkCollector) GetWork() (workPackages []*WorkPackage, err error) {
+func (w *WorkCollector) Start() {
+
+	log.Println("Initializing work collector for queue: ", w.url)
+	go w.getWork()
+
+}
+
+func (w *WorkCollector) getWork() {
 
 	var maxMessages int64 = 1
 	var visTimeout int64 = 10
 	var waitTimeout int64 = 15
 
-	params := &sqs.ReceiveMessageInput{
-		QueueURL:            &w.url,
-		MaxNumberOfMessages: &maxMessages,
-		VisibilityTimeout:   &visTimeout,
-		WaitTimeSeconds:     &waitTimeout,
-	}
+	for {
 
-	resp, err := w.svc.ReceiveMessage(params)
-	if err != nil {
-		return workPackages, errors.New("Error getting message from collector queue: " + err.Error())
-	}
+		params := &sqs.ReceiveMessageInput{
+			QueueUrl:            &w.url,
+			MaxNumberOfMessages: &maxMessages,
+			VisibilityTimeout:   &visTimeout,
+			WaitTimeSeconds:     &waitTimeout,
+		}
 
-	// compile work package and delete message from queue
-	for _, msg := range resp.Messages {
-		log.Println("Got work message with id:", *msg.MessageID)
-		workPackages = append(workPackages, parseMessage(*msg.Body))
+		resp, err := w.svc.ReceiveMessage(params)
+		if err != nil {
+			log.Println("Error getting message from collector queue: " + err.Error())
+		}
 
-		if err := w.DeleteMessage(*msg.ReceiptHandle); err != nil {
-			log.Println(err.Error())
+		// compile work package, delete message from queue then send out the package
+		for _, msg := range resp.Messages {
+			log.Println("Got work message with id:", *msg.MessageId)
+
+			pkg := parseMessage(*msg.Body)
+
+			if err := w.DeleteMessage(*msg.ReceiptHandle); err != nil {
+				log.Println(err.Error())
+			}
+
+			w.pkgChan <- *pkg
+
+			time.Sleep(15 * time.Second)
+
 		}
 	}
-
-	return workPackages, nil
 }
 
 func (w *WorkCollector) PutWork(workPackages []*WorkPackage) (err error) {
 
-	_msg, err := json.Marshal(workPackages)
-	if err != nil {
-		return err
+	for _, pkg := range workPackages {
+		_msg, err := json.Marshal(pkg)
+		if err != nil {
+			return err
+		}
+		msg := string(_msg)
+
+		params := &sqs.SendMessageInput{
+			MessageBody: &msg,
+			QueueUrl:    &w.url,
+		}
+
+		resp, err := w.svc.SendMessage(params)
+		if err != nil {
+			return errors.New("Error putting message to collector queue: " + err.Error())
+		}
+
+		log.Println("Message ID for created message is:", *resp.MessageId)
 	}
-
-	msg := string(_msg)
-	log.Println("saving:", msg)
-
-	params := &sqs.SendMessageInput{
-		MessageBody: &msg,
-		QueueURL:    &w.url,
-	}
-
-	resp, err := w.svc.SendMessage(params)
-	if err != nil {
-		return errors.New("Error putting message to collector queue: " + err.Error())
-	}
-
-	log.Println("Message ID for created message is:", *resp.MessageID)
 	return nil
 }
 

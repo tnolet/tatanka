@@ -36,7 +36,7 @@ type Compute struct {
 }
 
 func New(region string) *Compute {
-	return &Compute{ec2.New(&aws.Config{Region: region})}
+	return &Compute{ec2.New(&aws.Config{Region: &region})}
 }
 
 func GetRandomRegion(regions []string) string {
@@ -119,7 +119,7 @@ func (c *Compute) TerminateInstance(instanceID string) (status string, err error
 
 	status = ""
 	params := &ec2.TerminateInstancesInput{
-		InstanceIDs: []*string{aws.String(instanceID)},
+		InstanceIds: []*string{aws.String(instanceID)},
 	}
 
 	resp, err := c.svc.TerminateInstances(params)

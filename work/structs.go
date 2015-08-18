@@ -10,8 +10,9 @@ type Collector interface {
 }
 
 type WorkCollector struct {
-	svc *sqs.SQS
-	url string
+	svc     *sqs.SQS
+	url     string
+	pkgChan chan WorkPackage
 }
 
 type WorkPackage struct {
