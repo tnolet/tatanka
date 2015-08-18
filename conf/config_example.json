@@ -22,6 +22,7 @@
     "currentReqID": "",
     "lastReqID": "",
     "currentInstanceID": "",
+    "workerAmount": 5,
     "queueUrl": "https://sqs.eu-west-1.amazonaws.com/539701811563/work",
     "priceListUrl": "http://a0.awsstatic.com/pricing/1/ec2/linux-od.min.js",
     "terminationUrl": "http://127.0.0.1:10001/v1/routes/tatanka_test",

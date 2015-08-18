@@ -8,7 +8,7 @@ import (
 
 func (c *Controller) Evac() {
 
-	log.Println("Starting evacuation sequence")
+	log.Println("Starting node evacuation...")
 
 	/*  Before evac, check if the spot request created during INIT has already been fulfilled.
 	    If this is not the case, cancel it and create a brand new one.
@@ -43,7 +43,7 @@ func (c *Controller) Evac() {
 		c.stateChan <- c.state
 	}
 
-	if !noop {
+	if !c.noop {
 		// terminate
 		comp := compute.New(c.state.CurrentRegion)
 		_, err := comp.TerminateInstance(c.state.CurrentInstanceID)

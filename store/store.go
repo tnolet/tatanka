@@ -40,6 +40,7 @@ type State struct {
 	LastReqID          string
 	CurrentReqID       string
 	PriceListUrl       string
+	WorkerAmount       int
 	QueueUrl           string
 	TerminationUrl     string
 	TwitterHandle      string

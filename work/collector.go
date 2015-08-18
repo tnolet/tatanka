@@ -33,14 +33,28 @@ func (w *WorkCollector) GetWork() (workPackages []*WorkPackage, err error) {
 		return workPackages, errors.New("Error getting message from collector queue: " + err.Error())
 	}
 
+	// compile work package and delete message from queue
 	for _, msg := range resp.Messages {
 		log.Println("Got work message with id:", *msg.MessageID)
 		workPackages = append(workPackages, parseMessage(*msg.Body))
+
+		if err := w.DeleteMessage(*msg.ReceiptHandle); err != nil {
+			log.Println(err.Error())
+		}
 	}
+
 	return workPackages, nil
 }
 
-func (w *WorkCollector) PutWork(msg string) (err error) {
+func (w *WorkCollector) PutWork(workPackages []*WorkPackage) (err error) {
+
+	_msg, err := json.Marshal(workPackages)
+	if err != nil {
+		return err
+	}
+
+	msg := string(_msg)
+	log.Println("saving:", msg)
 
 	params := &sqs.SendMessageInput{
 		MessageBody: &msg,
@@ -64,4 +78,16 @@ func parseMessage(msg string) *WorkPackage {
 	}
 
 	return &workPackage
+}
+
+func (w *WorkCollector) DeleteMessage(receiptHandle string) error {
+	params := &sqs.DeleteMessageInput{
+		QueueUrl:      &w.url,
+		ReceiptHandle: &receiptHandle,
+	}
+	_, err := w.svc.DeleteMessage(params)
+	if err != nil {
+		return errors.New("Error deleting message from collector queue: " + err.Error())
+	}
+	return nil
 }

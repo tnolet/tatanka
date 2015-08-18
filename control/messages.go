@@ -16,6 +16,10 @@ type StartWork struct{}
 
 func (StartWork) Get() string { return "START_WORK" }
 
+type StopWork struct{}
+
+func (StopWork) Get() string { return "STOP_WORK" }
+
 type StartEvac struct{}
 
 func (StartEvac) Get() string { return "START_EVAC" }

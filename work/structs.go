@@ -9,10 +9,6 @@ type Collector interface {
 	PutWork(string)
 }
 
-type Package interface {
-	Pop() WorkItem
-}
-
 type WorkCollector struct {
 	svc *sqs.SQS
 	url string
@@ -26,7 +22,7 @@ type Worker struct {
 	ID          int
 	Work        chan WorkItem
 	WorkerQueue chan chan WorkItem
-	QuitChan    chan bool
+	DoneChan    chan WorkItem
 }
 
 type WorkItem string

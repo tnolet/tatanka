@@ -10,7 +10,7 @@ import (
 Termination checker loops and checks for termination every 5 seconds.
 
 It also takes into account the total lifetime. If the lifetime is reached, or the instance is
-scheduled to be terminated, a StartEvac message is send over the control channel.
+scheduled to be terminated, a StopWork message is send over the control channel.
 
 A lifetime of 0 or less is equal to an infinite lifetime.
 
@@ -35,7 +35,8 @@ func (c *Controller) StartDeathWatch() {
 				counter += 1
 				if compute.InstanceToBeTerminated(c.state.TerminationUrl) || time.Now().After(evacTime) {
 					evacNotice = true
-					c.ctrlChan <- &StartEvac{}
+					log.Println("Stopping work due to evac...")
+					c.ctrlChan <- &StopWork{}
 				} else {
 					if counter%12 == 0 {
 						log.Println("Deathwatch ticker: OK")
