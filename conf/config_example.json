@@ -5,7 +5,7 @@
     "bidWindow": 1800,
     "bidOffset": 600,
     "bidPrice": 0.035,
-    "bidRatio": 25,
+    "bidRatio": 5,
     "instanceType": "generalCurrentGen",
     "instanceSize": "m4.large",
     "regions": [
@@ -25,6 +25,6 @@
     "workerAmount": 5,
     "queueUrl": "https://sqs.eu-west-1.amazonaws.com/539701811563/work",
     "priceListUrl": "http://a0.awsstatic.com/pricing/1/ec2/linux-od.min.js",
-    "terminationUrl": "http://127.0.0.1:10001/v1/routes/tatanka_test",
+    "terminationUrl": "http://169.254.169.254/latest/meta-data/spot/termination-time",
     "twitterHandle": "@tatanka"
 }

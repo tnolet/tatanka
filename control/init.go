@@ -11,18 +11,18 @@ func (c *Controller) Init() {
 
 	log.Println("Starting control initialization sequence...")
 
+	// c.prepLocalStateOnInit()
+
+	c.bidder = bidder.New(c.state.PriceListUrl, c.state.CurrentBidRegion)
+	c.bidder.CancelSpotRequests()
+
+	bidPrice, err := c.GetBidPrice("advanced")
+	if err != nil {
+		c.mailChan <- FatalErrorMail("Error getting a bid price: " + err.Error())
+		log.Fatal(err.Error())
+	}
+
 	if !c.noop {
-
-		c.prepLocalStateOnInit()
-
-		c.bidder = bidder.New(c.state.PriceListUrl, c.state.CurrentBidRegion)
-		c.bidder.CancelSpotRequests()
-
-		bidPrice, err := c.GetBidPrice()
-		if err != nil {
-			c.mailChan <- FatalErrorMail("Error getting a bid price: " + err.Error())
-			log.Fatal(err.Error())
-		}
 
 		amiID := compute.GetLinuxAMIforRegion(c.state.CurrentBidRegion)
 		from, till := c.GetValidBidWindow(c.state.LifeTime, c.state.BidOffset, c.state.BidWindow)

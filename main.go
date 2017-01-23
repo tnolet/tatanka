@@ -20,7 +20,7 @@ var (
 	HomeBucket  = flag.String("homeBucket", "tnolet-tatanka", "S3 Bucket")
 	HomeKey     = flag.String("homeKey", "conf/config_example.json", "S3 Key")
 	localConfig = flag.String("localConfig", "", "Override S3 path for local testing")
-	HomeEmail   = flag.String("homeEmail", "tim@magnetic.io", "Email address")
+	HomeEmail   = flag.String("homeEmail", "tim@unumotors.com", "Email address")
 	Port        = flag.Int("port", 1980, "Tatanka's API port")
 	Noop        = flag.Bool("noop", false, "Start in noop mode")
 	NumCPU      int

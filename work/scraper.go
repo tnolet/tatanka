@@ -61,8 +61,8 @@ func runScraper(item WorkItem, done chan bool) {
 	crawl := "crawl"
 	site := "abc"
 	arg := "-a"
-	subject := "subject='" + string(item) + "'"
-	query := "query=" + strings.Replace(string(item), " ", "-", -1)
+	subject := "subject='" + "subject" + "'"
+	query := "query=subject"
 	cmd := exec.Command(
 		"/usr/local/bin/docker",
 		"run",

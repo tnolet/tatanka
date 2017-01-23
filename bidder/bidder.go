@@ -42,6 +42,7 @@ func (b *Bidder) CreateSpotRequest(price string, size string, amiId string, from
 	var reqType = "one-time"
 	var IAMRoleARN = "arn:aws:iam::539701811563:instance-profile/tatanka"
 	var base64UserData = base64.StdEncoding.EncodeToString([]byte(UserData))
+
 	// create request
 	params := &ec2.RequestSpotInstancesInput{
 		SpotPrice:     aws.String(price),

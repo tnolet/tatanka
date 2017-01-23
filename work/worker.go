@@ -32,11 +32,11 @@ func (w Worker) Start() {
 
 				log.Printf("Worker %d received job: %v", w.ID, workItem)
 
-				jobDone := make(chan bool)
+				done := make(chan bool)
 
-				go runNoopScraper(jobDone)
+				go runNoopScraper(done)
 				// go runScraper(done)
-				<-jobDone
+				<-done
 				log.Printf("Worker %d finished job: %v", w.ID, workItem)
 				w.DoneChan <- workItem
 			}

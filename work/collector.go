@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-func NewWorkCollector(url string, pkgChan chan WorkPackage) *WorkCollector {
+func NewWorkCollector(url string, wrkItemChan chan WorkItem) *WorkCollector {
 
 	svc := sqs.New(nil)
-	return &WorkCollector{svc: svc, url: url, pkgChan: pkgChan}
+	return &WorkCollector{svc: svc, url: url, wrkItmChan: wrkItemChan}
 
 }
 
@@ -46,24 +46,23 @@ func (w *WorkCollector) getWork() {
 		for _, msg := range resp.Messages {
 			log.Println("Got work message with id:", *msg.MessageId)
 
-			pkg := parseMessage(*msg.Body)
+			itm := parseMessage(*msg.Body)
 
 			if err := w.DeleteMessage(*msg.ReceiptHandle); err != nil {
 				log.Println(err.Error())
 			}
 
-			w.pkgChan <- *pkg
-
-			time.Sleep(15 * time.Second)
+			w.wrkItmChan <- *itm
+			<-time.After(15 * time.Second)
 
 		}
 	}
 }
 
-func (w *WorkCollector) PutWork(workPackages []*WorkPackage) (err error) {
+func (w *WorkCollector) PutWork(workItems []*WorkItem) (err error) {
 
-	for _, pkg := range workPackages {
-		_msg, err := json.Marshal(pkg)
+	for _, itm := range workItems {
+		_msg, err := json.Marshal(itm)
 		if err != nil {
 			return err
 		}
@@ -84,14 +83,14 @@ func (w *WorkCollector) PutWork(workPackages []*WorkPackage) (err error) {
 	return nil
 }
 
-func parseMessage(msg string) *WorkPackage {
+func parseMessage(msg string) *WorkItem {
 
-	var workPackage WorkPackage
-	if err := json.Unmarshal([]byte(msg), &workPackage); err != nil {
-		log.Println("Error parsing message to work package", err.Error())
+	var workItem WorkItem
+	if err := json.Unmarshal([]byte(msg), &workItem); err != nil {
+		log.Println("Error parsing message to work item", err.Error())
 	}
 
-	return &workPackage
+	return &workItem
 }
 
 func (w *WorkCollector) DeleteMessage(receiptHandle string) error {

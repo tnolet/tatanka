@@ -18,7 +18,7 @@ func (c *Controller) Evac() {
 		if c.bidder.SpotInstanceActive(c.state.CurrentReqID) != true {
 
 			c.bidder.CancelSpotRequests()
-			bidPrice, err := c.GetBidPrice()
+			bidPrice, err := c.GetBidPrice("simple")
 			if err != nil {
 				c.mailChan <- FatalErrorMail("Error getting a bid price: " + err.Error())
 				log.Fatal(err.Error())

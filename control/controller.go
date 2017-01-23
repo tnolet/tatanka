@@ -14,9 +14,7 @@ type Controller struct {
 	mailChan  chan string
 	ctrlChan  chan Message
 	stateChan chan store.State
-	workChan  chan work.WorkItem       // use to send work items
-	workMap   map[work.WorkItem]string // used to store the reservoir of work
-	moreWork  bool                     // used as a general switch to start/stop work
+	workChan  chan work.WorkItem // use to send work items
 	collector *work.WorkCollector
 	bidder    *bidder.Bidder
 	noop      bool
@@ -25,15 +23,12 @@ type Controller struct {
 func New(mail chan string, c chan Message, s chan store.State, noop bool) *Controller {
 
 	w := make(chan work.WorkItem)
-	m := make(map[work.WorkItem]string)
 
 	return &Controller{
 		mailChan:  mail,
 		ctrlChan:  c,
 		stateChan: s,
 		workChan:  w,
-		workMap:   m,
-		moreWork:  true,
 		noop:      noop}
 }
 

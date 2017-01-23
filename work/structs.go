@@ -10,13 +10,9 @@ type Collector interface {
 }
 
 type WorkCollector struct {
-	svc     *sqs.SQS
-	url     string
-	pkgChan chan WorkPackage
-}
-
-type WorkPackage struct {
-	WorkItems []WorkItem `json:"subjects"`
+	svc        *sqs.SQS
+	url        string
+	wrkItmChan chan WorkItem
 }
 
 type Worker struct {
@@ -26,4 +22,18 @@ type Worker struct {
 	DoneChan    chan WorkItem
 }
 
-type WorkItem string
+type WorkItem struct {
+	Setup struct {
+		Commands [][]string `json:"commands"`
+	} `json:"setup"`
+
+	Work struct {
+		Commands [][]string `json:"commands"`
+	} `json:"work"`
+
+	Teardown struct {
+		Commands [][]string `json:"commands"`
+	}
+
+	Variables map[string]string `json:"variables"`
+}

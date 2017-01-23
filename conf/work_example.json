@@ -1,30 +1,24 @@
-    {
-
-        "subjects": [
-            "Tori Black",
-            "Lisa Ann",
-            "Alexis Texas",
-            "Sara Jay",
-            "Nikki Benz",
-            "Kayden Kross",
-            "Lexi Bell",
-            "Tanya Tate",
-            "Jesse Jane",
-            "Samantha Saint",
-            "Bonnie Rotten",
-            "Phoenix Marie",
-            "Gianna Michaels",
-            "Vicky Vette",
-            "Kelly Devince",
-            "Dani Daniels",
-            "Kagney Linn Karter",
-            "Stoya",
-            "Tasha Reign",
-            "Bobbi Eden",
-            "Puma Swede",
-            "London Keyes",
-            "Joanna Angel",
-            "Allie Haze",
-            "Breanne Benson"
+{
+    "setup": {
+        "commands": [
+            ["yum", "update", "-y"],
+            ["yum", "install", "-y", "docker"],
+            ["service", "docker", "start"],
+            ["docker", "pull", "tnolet/scraper:0.1.0"]
         ]
+    },
+    "work": {
+        "commands": [
+            ["scrapy", "crawl", "abc", "-a", "subject=$fullName", "-a", "query=$fullNameWithTransform"]
+        ]
+    },
+    "teardown": {
+        "commands": [
+            []
+        ]
+    },
+    "variables": {
+        "fullName": "John Doe",
+        "fullNameWithTransform": "John+Doe"
     }
+}
